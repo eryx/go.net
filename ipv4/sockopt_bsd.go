@@ -13,7 +13,7 @@ import (
 )
 
 func ipv4MulticastTTL(fd int) (int, error) {
-	v, err := syscall.GetsockoptByte(fd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_TTL)
+	v, err := syscall.GetsockoptByte(fd, ianaProtocolIP, syscall.IP_MULTICAST_TTL)
 	if err != nil {
 		return 0, os.NewSyscallError("getsockopt", err)
 	}
@@ -21,15 +21,11 @@ func ipv4MulticastTTL(fd int) (int, error) {
 }
 
 func setIPv4MulticastTTL(fd int, v int) error {
-	err := syscall.SetsockoptByte(fd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_TTL, byte(v))
-	if err != nil {
-		return os.NewSyscallError("setsockopt", err)
-	}
-	return nil
+	return os.NewSyscallError("setsockopt", syscall.SetsockoptByte(fd, ianaProtocolIP, syscall.IP_MULTICAST_TTL, byte(v)))
 }
 
 func ipv4ReceiveDestinationAddress(fd int) (bool, error) {
-	v, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_IP, syscall.IP_RECVDSTADDR)
+	v, err := syscall.GetsockoptInt(fd, ianaProtocolIP, syscall.IP_RECVDSTADDR)
 	if err != nil {
 		return false, os.NewSyscallError("getsockopt", err)
 	}
@@ -37,15 +33,11 @@ func ipv4ReceiveDestinationAddress(fd int) (bool, error) {
 }
 
 func setIPv4ReceiveDestinationAddress(fd int, v bool) error {
-	err := syscall.SetsockoptInt(fd, syscall.IPPROTO_IP, syscall.IP_RECVDSTADDR, boolint(v))
-	if err != nil {
-		return os.NewSyscallError("setsockopt", err)
-	}
-	return nil
+	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd, ianaProtocolIP, syscall.IP_RECVDSTADDR, boolint(v)))
 }
 
 func ipv4ReceiveInterface(fd int) (bool, error) {
-	v, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_IP, syscall.IP_RECVIF)
+	v, err := syscall.GetsockoptInt(fd, ianaProtocolIP, syscall.IP_RECVIF)
 	if err != nil {
 		return false, os.NewSyscallError("getsockopt", err)
 	}
@@ -53,19 +45,15 @@ func ipv4ReceiveInterface(fd int) (bool, error) {
 }
 
 func setIPv4ReceiveInterface(fd int, v bool) error {
-	err := syscall.SetsockoptInt(fd, syscall.IPPROTO_IP, syscall.IP_RECVIF, boolint(v))
-	if err != nil {
-		return os.NewSyscallError("setsockopt", err)
-	}
-	return nil
+	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd, ianaProtocolIP, syscall.IP_RECVIF, boolint(v)))
 }
 
 func ipv4MulticastInterface(fd int) (*net.Interface, error) {
-	a, err := syscall.GetsockoptInet4Addr(fd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_IF)
+	v, err := syscall.GetsockoptInet4Addr(fd, ianaProtocolIP, syscall.IP_MULTICAST_IF)
 	if err != nil {
 		return nil, os.NewSyscallError("getsockopt", err)
 	}
-	return netIP4ToInterface(net.IPv4(a[0], a[1], a[2], a[3]))
+	return netIP4ToInterface(net.IPv4(v[0], v[1], v[2], v[3]))
 }
 
 func setIPv4MulticastInterface(fd int, ifi *net.Interface) error {
@@ -73,17 +61,13 @@ func setIPv4MulticastInterface(fd int, ifi *net.Interface) error {
 	if err != nil {
 		return os.NewSyscallError("setsockopt", err)
 	}
-	var a [4]byte
-	copy(a[:], ip.To4())
-	err = syscall.SetsockoptInet4Addr(fd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_IF, a)
-	if err != nil {
-		return os.NewSyscallError("setsockopt", err)
-	}
-	return nil
+	var v [4]byte
+	copy(v[:], ip.To4())
+	return os.NewSyscallError("setsockopt", syscall.SetsockoptInet4Addr(fd, ianaProtocolIP, syscall.IP_MULTICAST_IF, v))
 }
 
 func ipv4MulticastLoopback(fd int) (bool, error) {
-	v, err := syscall.GetsockoptByte(fd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_LOOP)
+	v, err := syscall.GetsockoptByte(fd, ianaProtocolIP, syscall.IP_MULTICAST_LOOP)
 	if err != nil {
 		return false, os.NewSyscallError("getsockopt", err)
 	}
@@ -91,33 +75,21 @@ func ipv4MulticastLoopback(fd int) (bool, error) {
 }
 
 func setIPv4MulticastLoopback(fd int, v bool) error {
-	err := syscall.SetsockoptByte(fd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_LOOP, byte(boolint(v)))
-	if err != nil {
-		return os.NewSyscallError("setsockopt", err)
-	}
-	return nil
+	return os.NewSyscallError("setsockopt", syscall.SetsockoptByte(fd, ianaProtocolIP, syscall.IP_MULTICAST_LOOP, byte(boolint(v))))
 }
 
 func joinIPv4Group(fd int, ifi *net.Interface, grp net.IP) error {
-	mreq := &syscall.IPMreq{Multiaddr: [4]byte{grp[0], grp[1], grp[2], grp[3]}}
-	if err := setSyscallIPMreq(mreq, ifi); err != nil {
+	mreq := syscall.IPMreq{Multiaddr: [4]byte{grp[0], grp[1], grp[2], grp[3]}}
+	if err := setSyscallIPMreq(&mreq, ifi); err != nil {
 		return err
 	}
-	err := syscall.SetsockoptIPMreq(fd, syscall.IPPROTO_IP, syscall.IP_ADD_MEMBERSHIP, mreq)
-	if err != nil {
-		return os.NewSyscallError("setsockopt", err)
-	}
-	return nil
+	return os.NewSyscallError("setsockopt", syscall.SetsockoptIPMreq(fd, ianaProtocolIP, syscall.IP_ADD_MEMBERSHIP, &mreq))
 }
 
 func leaveIPv4Group(fd int, ifi *net.Interface, grp net.IP) error {
-	mreq := &syscall.IPMreq{Multiaddr: [4]byte{grp[0], grp[1], grp[2], grp[3]}}
-	if err := setSyscallIPMreq(mreq, ifi); err != nil {
+	mreq := syscall.IPMreq{Multiaddr: [4]byte{grp[0], grp[1], grp[2], grp[3]}}
+	if err := setSyscallIPMreq(&mreq, ifi); err != nil {
 		return err
 	}
-	err := syscall.SetsockoptIPMreq(fd, syscall.IPPROTO_IP, syscall.IP_DROP_MEMBERSHIP, mreq)
-	if err != nil {
-		return os.NewSyscallError("setsockopt", err)
-	}
-	return nil
+	return os.NewSyscallError("setsockopt", syscall.SetsockoptIPMreq(fd, ianaProtocolIP, syscall.IP_DROP_MEMBERSHIP, &mreq))
 }

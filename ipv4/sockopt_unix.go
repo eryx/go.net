@@ -12,7 +12,7 @@ import (
 )
 
 func ipv4TOS(fd int) (int, error) {
-	v, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_IP, syscall.IP_TOS)
+	v, err := syscall.GetsockoptInt(fd, ianaProtocolIP, syscall.IP_TOS)
 	if err != nil {
 		return 0, os.NewSyscallError("getsockopt", err)
 	}
@@ -20,15 +20,11 @@ func ipv4TOS(fd int) (int, error) {
 }
 
 func setIPv4TOS(fd int, v int) error {
-	err := syscall.SetsockoptInt(fd, syscall.IPPROTO_IP, syscall.IP_TOS, v)
-	if err != nil {
-		return os.NewSyscallError("setsockopt", err)
-	}
-	return nil
+	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd, ianaProtocolIP, syscall.IP_TOS, v))
 }
 
 func ipv4TTL(fd int) (int, error) {
-	v, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_IP, syscall.IP_TTL)
+	v, err := syscall.GetsockoptInt(fd, ianaProtocolIP, syscall.IP_TTL)
 	if err != nil {
 		return 0, os.NewSyscallError("getsockopt", err)
 	}
@@ -36,15 +32,11 @@ func ipv4TTL(fd int) (int, error) {
 }
 
 func setIPv4TTL(fd int, v int) error {
-	err := syscall.SetsockoptInt(fd, syscall.IPPROTO_IP, syscall.IP_TTL, v)
-	if err != nil {
-		return os.NewSyscallError("setsockopt", err)
-	}
-	return nil
+	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd, ianaProtocolIP, syscall.IP_TTL, v))
 }
 
 func ipv4ReceiveTTL(fd int) (bool, error) {
-	v, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_IP, syscall.IP_RECVTTL)
+	v, err := syscall.GetsockoptInt(fd, ianaProtocolIP, syscall.IP_RECVTTL)
 	if err != nil {
 		return false, os.NewSyscallError("getsockopt", err)
 	}
@@ -52,15 +44,11 @@ func ipv4ReceiveTTL(fd int) (bool, error) {
 }
 
 func setIPv4ReceiveTTL(fd int, v bool) error {
-	err := syscall.SetsockoptInt(fd, syscall.IPPROTO_IP, syscall.IP_RECVTTL, boolint(v))
-	if err != nil {
-		return os.NewSyscallError("setsockopt", err)
-	}
-	return nil
+	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd, ianaProtocolIP, syscall.IP_RECVTTL, boolint(v)))
 }
 
 func ipv4HeaderPrepend(fd int) (bool, error) {
-	v, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_IP, syscall.IP_HDRINCL)
+	v, err := syscall.GetsockoptInt(fd, ianaProtocolIP, syscall.IP_HDRINCL)
 	if err != nil {
 		return false, os.NewSyscallError("getsockopt", err)
 	}
@@ -68,9 +56,5 @@ func ipv4HeaderPrepend(fd int) (bool, error) {
 }
 
 func setIPv4HeaderPrepend(fd int, v bool) error {
-	err := syscall.SetsockoptInt(fd, syscall.IPPROTO_IP, syscall.IP_HDRINCL, boolint(v))
-	if err != nil {
-		return os.NewSyscallError("setsockopt", err)
-	}
-	return nil
+	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd, ianaProtocolIP, syscall.IP_HDRINCL, boolint(v)))
 }

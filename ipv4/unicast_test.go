@@ -13,6 +13,76 @@ import (
 	"testing"
 )
 
+func benchmarkUDPListener() (net.PacketConn, net.Addr, error) {
+	c, err := net.ListenPacket("udp4", "127.0.0.1:0")
+	if err != nil {
+		return nil, nil, err
+	}
+	dst, err := net.ResolveUDPAddr("udp4", c.LocalAddr().String())
+	if err != nil {
+		c.Close()
+		return nil, nil, err
+	}
+	return c, dst, nil
+}
+
+func BenchmarkReadWriteNetUDP(b *testing.B) {
+	c, dst, err := benchmarkUDPListener()
+	if err != nil {
+		b.Fatalf("benchmarkUDPListener failed: %v", err)
+	}
+	defer c.Close()
+
+	wb, rb := []byte("HELLO-R-U-THERE"), make([]byte, 128)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		benchmarkReadWriteNetUDP(b, c, wb, rb, dst)
+	}
+}
+
+func benchmarkReadWriteNetUDP(b *testing.B, c net.PacketConn, wb, rb []byte, dst net.Addr) {
+	if _, err := c.WriteTo(wb, dst); err != nil {
+		b.Fatalf("net.PacketConn.WriteTo failed: %v", err)
+	}
+	if _, _, err := c.ReadFrom(rb); err != nil {
+		b.Fatalf("net.PacketConn.ReadFrom failed: %v", err)
+	}
+}
+
+func BenchmarkReadWriteIPv4UDP(b *testing.B) {
+	c, dst, err := benchmarkUDPListener()
+	if err != nil {
+		b.Fatalf("benchmarkUDPListener failed: %v", err)
+	}
+	defer c.Close()
+
+	p := ipv4.NewPacketConn(c)
+	cf := ipv4.FlagTTL | ipv4.FlagInterface
+	if err := p.SetControlMessage(cf, true); err != nil {
+		b.Fatalf("ipv4.PacketConn.SetControlMessage failed: %v", err)
+	}
+	ifi := loopbackInterface()
+
+	wb, rb := []byte("HELLO-R-U-THERE"), make([]byte, 128)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		benchmarkReadWriteIPv4UDP(b, p, wb, rb, dst, ifi)
+	}
+}
+
+func benchmarkReadWriteIPv4UDP(b *testing.B, p *ipv4.PacketConn, wb, rb []byte, dst net.Addr, ifi *net.Interface) {
+	cm := ipv4.ControlMessage{TTL: 1}
+	if ifi != nil {
+		cm.IfIndex = ifi.Index
+	}
+	if _, err := p.WriteTo(wb, &cm, dst); err != nil {
+		b.Fatalf("ipv4.PacketConn.WriteTo failed: %v", err)
+	}
+	if _, _, _, err := p.ReadFrom(rb); err != nil {
+		b.Fatalf("ipv4.PacketConn.ReadFrom failed: %v", err)
+	}
+}
+
 func TestReadWriteUnicastIPPayloadUDP(t *testing.T) {
 	c, err := net.ListenPacket("udp4", "127.0.0.1:0")
 	if err != nil {
@@ -53,7 +123,7 @@ func TestReadWriteUnicastIPPayloadICMP(t *testing.T) {
 	cf := ipv4.FlagTTL | ipv4.FlagDst | ipv4.FlagInterface
 	for i, toggle := range []bool{true, false, true} {
 		wb, err := (&icmpMessage{
-			Type: icmpv4EchoRequest, Code: 0,
+			Type: ipv4.ICMPTypeEcho, Code: 0,
 			Body: &icmpEcho{
 				ID: os.Getpid() & 0xffff, Seq: i + 1,
 				Data: []byte("HELLO-R-U-THERE"),
@@ -70,8 +140,8 @@ func TestReadWriteUnicastIPPayloadICMP(t *testing.T) {
 		if err != nil {
 			t.Fatalf("parseICMPMessage failed: %v", err)
 		}
-		if m.Type != icmpv4EchoReply || m.Code != 0 {
-			t.Fatalf("got type=%v, code=%v; expected type=%v, code=%v", m.Type, m.Code, icmpv4EchoReply, 0)
+		if m.Type != ipv4.ICMPTypeEchoReply || m.Code != 0 {
+			t.Fatalf("got type=%v, code=%v; expected type=%v, code=%v", m.Type, m.Code, ipv4.ICMPTypeEchoReply, 0)
 		}
 	}
 }
@@ -98,7 +168,7 @@ func TestReadWriteUnicastIPDatagram(t *testing.T) {
 	cf := ipv4.FlagTTL | ipv4.FlagDst | ipv4.FlagInterface
 	for i, toggle := range []bool{true, false, true} {
 		wb, err := (&icmpMessage{
-			Type: icmpv4EchoRequest, Code: 0,
+			Type: ipv4.ICMPTypeEcho, Code: 0,
 			Body: &icmpEcho{
 				ID: os.Getpid() & 0xffff, Seq: i + 1,
 				Data: []byte("HELLO-R-U-THERE"),
@@ -115,8 +185,8 @@ func TestReadWriteUnicastIPDatagram(t *testing.T) {
 		if err != nil {
 			t.Fatalf("parseICMPMessage failed: %v", err)
 		}
-		if m.Type != icmpv4EchoReply || m.Code != 0 {
-			t.Fatalf("got type=%v, code=%v; expected type=%v, code=%v", m.Type, m.Code, icmpv4EchoReply, 0)
+		if m.Type != ipv4.ICMPTypeEchoReply || m.Code != 0 {
+			t.Fatalf("got type=%v, code=%v; expected type=%v, code=%v", m.Type, m.Code, ipv4.ICMPTypeEchoReply, 0)
 		}
 	}
 }
